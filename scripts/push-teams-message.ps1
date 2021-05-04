@@ -16,7 +16,7 @@ if($x.essentials.signalType -eq 'Metric') {
     $facts = @(
         @{
             "name"= "Severity:"
-            "value"= "$($x.essentials.severity)"
+            "value"= $x.essentials.severity
         }
     )
 } else if ($x.essentials.signalType -eq 'Log') {
