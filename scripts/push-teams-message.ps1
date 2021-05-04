@@ -4,13 +4,13 @@ Param
     [string]$WebhookUrl
 )
 
-$monitorCondtion = $x.essentials.monitorCondition
-if($monitorCondtion -eq 'Resolved') {
-    Write-Host "Ignoring $monitorCondtion condition"
+$x = ($WebhookData.RequestBody | ConvertFrom-Json).data
+
+$monitorCondition = $x.essentials.monitorCondition
+if($monitorCondition -eq 'Resolved') {
+    Write-Host "Ignoring $monitorCondition condition"
     return
 }
-
-$x = ($WebhookData.RequestBody | ConvertFrom-Json).data
 
 if($x.essentials.signalType -eq 'Metric') {
     $facts = @(
@@ -19,19 +19,34 @@ if($x.essentials.signalType -eq 'Metric') {
             "value"= "$($x.essentials.severity)"
         }
     )
+} else if ($x.essentials.signalType -eq 'Log') {
+	$facts = @(
+        @{
+            "name"= "Severity:"
+            "value"= $x.essentials.severity
+        },
+        @{
+            "name"= "Query:"
+            "value"= $x.alertContext.condition.allOf[0].searchQuery
+        },
+        @{
+            "name"= "Result Count:"
+            "value"= $x.alertContext.condition.allOf[0].metricValue
+        }
+    )
 } else {
     $facts = @(
         @{
             "name"= "Severity:"
-            "value"= "$($x.essentials.severity)"
+            "value"= $x.essentials.severity
         },
         @{
             "name"= "Query:"
-            "value"= "$($x.alertContext.SearchQuery)"
+            "value"= $x.alertContext.SearchQuery
         },
         @{
             "name"= "Result Count:"
-            "value"= "$($x.alertContext.ResultCount)"
+            "value"= $x.alertContext.ResultCount
         }
     )
 }
@@ -40,9 +55,9 @@ $request = @{
     "@context"= "http://schema.org/extensions"
     "@type"= "MessageCard"
     "themeColor"= "CC4216"
-    "title"= "$($monitorCondtion) $($x.essentials.severity) - $($x.essentials.alertRule)"
+    "title"= "$($monitorCondition) $($x.essentials.severity) - $($x.essentials.alertRule)"
     "text"= ($x.essentials.configurationItems -join ',')
-    "summary"= "$($monitorCondtion) $($x.essentials.severity), $($x.essentials.alertRule), "
+    "summary"= "$($monitorCondition) $($x.essentials.severity), $($x.essentials.alertRule), "
     "potentialAction"= @(
         @{
             "@type"= "OpenUri"
@@ -60,7 +75,7 @@ $request = @{
             "targets"= @(
                 @{
                     "os"= "default"
-                    "uri"= "https://ms.portal.azure.com/#blade/Microsoft_Azure_Monitoring/AlertDetailsTemplateBlade/alertId/$([System.Web.HTTPUtility]::UrlEncode($x.essentials.alertId))"
+                    "uri"= "https://portal.azure.com/#blade/Microsoft_Azure_Monitoring/AlertDetailsTemplateBlade/alertId/$([System.Web.HTTPUtility]::UrlEncode($x.essentials.alertId))"
                 }
             )
         }
